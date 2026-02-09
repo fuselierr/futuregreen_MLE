@@ -19,3 +19,10 @@ from rest_framework.response import Response
 # get_result_matrix
 # Endpoint type: GET
 # Description: Provides a confusion matrix or similar performance metrics for the DS model.
+
+# submit_feedback
+# Endpoint type: POST
+# Description: Allows users to submit feedback on the accuracy of the model's predictions, which can be used for further training and improvement.
+# ask frontend for more clarification about this
+
+# Additional features (waiting on frontend). You can message Alan about this
