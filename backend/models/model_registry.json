@@ -1,0 +1,16 @@
+[
+{
+  "file_path": "futuregreen_MLE/backend/models/2026-2-10_TrashCNN_v1.keras",
+  "model_type": "test"
+  
+},
+{
+  "file_path": "futuregreen_MLE/backend/models/2026-2-10_TrashCNN_v2.keras",
+   "model_type": "test"
+  
+},
+{
+  "file_path": "futuregreen_MLE/backend/models/2026-2-10_TrashCNN_v3.keras",
+   "model_type": "test"
+}
+]
