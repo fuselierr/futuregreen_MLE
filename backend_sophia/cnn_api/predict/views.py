@@ -56,7 +56,7 @@ class PredictionViewSet(viewsets.ViewSet):
         """Load the trained CNN model"""
         if self.model is None:
             from tensorflow.keras.models import load_model
-            model_path = Path(__file__).resolve().parent.parent / "TrashCNN_es_v1.1.keras"
+            model_path = Path(__file__).resolve().parent.parent / "benchmark_model.keras"
             try:
                 self.model = load_model(str(model_path))
                 self.model_name = model_path.stem  # Extract filename without extension
@@ -222,7 +222,7 @@ class PredictionViewSet(viewsets.ViewSet):
             predicted_class = int(np.argmax(predictions))
             
             # Class labels - adjust based on your model's training classes
-            class_labels = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
+            class_labels = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
             prediction_label = (
                 class_labels[predicted_class] 
                 if predicted_class < len(class_labels) 
