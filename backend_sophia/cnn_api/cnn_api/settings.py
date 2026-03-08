@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-wmo^hbs6la8krr!020z57$px+yh=t9xih7r9%mkf9etn33s8wg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'ethnyao.pythonanywhere.com']
 
 
 # Application definition
@@ -127,7 +127,9 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS settings for development
-CORS_ALLOW_ALL_ORIGINS = True # Allow all origins during development
-# CORS_ALLOWED_ORIGINS = ['http://localhost:3000'] # Specific origins
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8081',  # Development frontend
+    'https://your-frontend-domain.com',  # Replace with your production frontend domain
+]
 CORS_ALLOW_CREDENTIALS = True
