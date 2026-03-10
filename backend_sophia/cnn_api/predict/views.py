@@ -34,6 +34,7 @@ logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
 
 
+# PredictionViewSet handles CNN image predictions without storing history in the database.
 class PredictionViewSet(viewsets.ViewSet):
     """
     API ViewSet for CNN image predictions
@@ -52,11 +53,12 @@ class PredictionViewSet(viewsets.ViewSet):
         self.model_name = None
         self._load_model()
 
+    # Helper method to load the CNN model from file
     def _load_model(self):
         """Load the trained CNN model"""
         if self.model is None:
             from tensorflow.keras.models import load_model
-            model_path = Path(__file__).resolve().parent.parent / "TrashCNN_es_v1.1.keras"
+            model_path = Path(__file__).resolve().parent.parent / "benchmark_model.keras"
             try:
                 self.model = load_model(str(model_path))
                 self.model_name = model_path.stem  # Extract filename without extension
@@ -67,6 +69,7 @@ class PredictionViewSet(viewsets.ViewSet):
                 self.model = None
                 self.model_name = None
 
+    # Helper method to decode Base64 image data to a numpy array in RGB format
     def _decode_base64_image(self, base64_string):
         """
         Decode a Base64-encoded image string to a numpy array in RGB format
@@ -100,6 +103,7 @@ class PredictionViewSet(viewsets.ViewSet):
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+    # Main method to handle prediction requests
     def create(self, request, *args, **kwargs):
         """
         Process image and return prediction without storing in database
@@ -164,6 +168,7 @@ class PredictionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    # Helper method to preprocess the image for model input
     def _preprocess_image(self, image_array, width, height):
         """
         Preprocess image: convert to numpy array, resize to 150x150, and normalize
@@ -203,6 +208,7 @@ class PredictionViewSet(viewsets.ViewSet):
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+    # Single image prediction method that uses the CNN model to predict the class of the input image. Returns the predicted class label and confidence score. Handles exceptions and logs prediction results for debugging and monitoring purposes.
     def _predict(self, image_array):
         """
         Make prediction using the CNN model
@@ -222,7 +228,7 @@ class PredictionViewSet(viewsets.ViewSet):
             predicted_class = int(np.argmax(predictions))
             
             # Class labels - adjust based on your model's training classes
-            class_labels = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
+            class_labels = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
             prediction_label = (
                 class_labels[predicted_class] 
                 if predicted_class < len(class_labels) 
@@ -238,6 +244,7 @@ class PredictionViewSet(viewsets.ViewSet):
             raise RuntimeError(error_msg)
 
 
+    # Health check endpoint to verify if the CNN model is loaded and API is operational. Returns "status", "model_loaded", and a descriptive message about the health status of the API. Useful for monitoring and alerting.
     @action(detail=False, methods=["get"])
     def check_health(self, request):
         """
@@ -278,6 +285,7 @@ class PredictionViewSet(viewsets.ViewSet):
             }
             return Response(health_data, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
+    # Model info endpoint to retrieve details about the CNN model architecture and parameters. Returns information such as model name, input shape, output shape, total layers, total parameters, trainable parameters, and non-trainable parameters. Useful for debugging and understanding the model being used for predictions.
     @action(detail=False, methods=["get"])
     def model_info(self, request):
         """
