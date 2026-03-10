@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 
+# Serializer for CNN prediction input, output, health check response, and model info response. Validates input data and formats output data for the CNN prediction API endpoints.
 class PredictionInputSerializer(serializers.Serializer):
     """Serializer for CNN prediction input"""
     
@@ -33,6 +34,7 @@ class PredictionInputSerializer(serializers.Serializer):
         return value
 
 
+# Serializer for CNN prediction output, including predicted class label and confidence score. Formats the output data for the API response and ensures it adheres to the expected structure.
 class PredictionOutputSerializer(serializers.Serializer):
     """Serializer for prediction output"""
     image_name = serializers.CharField()
@@ -40,6 +42,7 @@ class PredictionOutputSerializer(serializers.Serializer):
     confidence = serializers.FloatField()
 
 
+# Serializer for health check endpoint response, including status, model loaded flag, and a descriptive message. Used to format the response data for the health check API endpoint and provide useful information about the API's operational status.
 class HealthCheckSerializer(serializers.Serializer):
     """Serializer for health check endpoint response"""
     status = serializers.CharField()
@@ -47,6 +50,7 @@ class HealthCheckSerializer(serializers.Serializer):
     message = serializers.CharField()
 
 
+# Serializer for model info endpoint response, including model name, input shape, output shape, total layers, total parameters, trainable parameters, and non-trainable parameters. Used to format the response data for the model info API endpoint and provide detailed information about the CNN model architecture and parameters.
 class ModelInfoSerializer(serializers.Serializer):
     """Serializer for model info endpoint response"""
     model_name = serializers.CharField()
