@@ -51,14 +51,25 @@ class PredictionViewSet(viewsets.ViewSet):
         super().__init__(*args, **kwargs)
         self.model = None
         self.model_name = None
-        self._load_model()
 
     # Helper method to load the CNN model from file
-    def _load_model(self):
+    def _load_model(self, image_source="w"):
         """Load the trained CNN model"""
         if self.model is None:
             from tensorflow.keras.models import load_model
-            model_path = Path(__file__).resolve().parent.parent / "benchmark_model.keras"
+            model_path_w = Path(__file__).resolve().parent.parent / "benchmark_model.keras"
+            model_path_m = Path(__file__).resolve().parent.parent / "TrashCNN_es_v1.1.keras"
+            
+            if image_source == "w":
+                model_path = model_path_w
+            elif image_source == "m":
+                model_path = model_path_m
+            else:
+                logger.error(f"Invalid image source: {image_source}")
+                self.model = None
+                self.model_name = None
+                return
+
             try:
                 self.model = load_model(str(model_path))
                 self.model_name = model_path.stem  # Extract filename without extension
@@ -131,10 +142,14 @@ class PredictionViewSet(viewsets.ViewSet):
         
         try:
             # Extract validated data
+            image_source = serializer.validated_data.get("image_source")
             image_data = serializer.validated_data.get("image_data")
             image_width = serializer.validated_data.get("image_width")
             image_height = serializer.validated_data.get("image_height")
             image_name = serializer.validated_data.get("image_name")
+            
+            # Load model with the specified image source
+            self._load_model(image_source)
             
             logger.info(f"Processing image: {image_name} ({image_width}x{image_height})")
             
@@ -151,14 +166,21 @@ class PredictionViewSet(viewsets.ViewSet):
             )
             
             # Return result without storing
-            output_data = {
-                "image_name": image_name,
-                "prediction_result": prediction_result,
-                "confidence": float(confidence),
-            }
+            if confidence < 0.4:
+                error_msg = f"Low confidence ({confidence:.4f}) for {image_name}: {prediction_result}"
+                logger.error(error_msg)
+                return Response(
+                    {"error": error_msg},
+                    status=status.HTTP_200_OK)
+            else:
+                output_data = {
+                    "image_name": image_name,
+                    "prediction_result": prediction_result,
+                    "confidence": float(confidence),
+                }
             
-            output_serializer = PredictionOutputSerializer(output_data)
-            return Response(output_serializer.data, status=status.HTTP_200_OK)
+                output_serializer = PredictionOutputSerializer(output_data)
+                return Response(output_serializer.data, status=status.HTTP_200_OK)
             
         except Exception as e:
             error_msg = f"Prediction failed: {str(e)}"
