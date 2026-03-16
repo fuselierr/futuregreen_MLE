@@ -1,0 +1,49 @@
+Dataset is set to dataset_vers1
+Dimensions of the dataset images will be (150, 150)
+
+The model's name is GarbageClassificationModel
+For this model, pixel values will be normalized to [0, 1]
+
+Loaded 25473 images from dataset_vers1
+Number of images per category:
+	paper: 3639 images
+	plastics: 3639 images
+	metal: 3639 images
+	cardboard: 3639 images
+	organic: 3639 images
+	trash: 3639 images
+	glass: 3639 images
+
+Data is split with train/test/validation ratio of 60/20/20
+	Training data: 15281 images
+	Testing data: 5096 images
+	Validation data: 5096 images
+
+Model was planned to be trained for 50 epochs, but stopped at 20 epochs to avoid overfitting)
+	Training time: 19 min 39 sec
+	0min 58sec per epoch
+
+Model is saved at benchmark_model.keras
+
+Prediction summary:
+	Total images predicted: 5096
+	Correct: 2818
+	Wrong: 2278
+	Time: 8.32s (0.0016s per image)
+	Accuracy: 0.5529827315541601
+
+Classification Report:
+              precision    recall  f1-score   support
+
+       paper       0.56      0.43      0.49       728
+    plastics       0.38      0.66      0.48       728
+       metal       0.50      0.53      0.51       728
+   cardboard       0.75      0.76      0.76       728
+     organic       0.83      0.63      0.72       728
+       trash       0.55      0.36      0.44       728
+       glass       0.50      0.48      0.49       728
+
+    accuracy                           0.55      5096
+   macro avg       0.58      0.55      0.56      5096
+weighted avg       0.58      0.55      0.56      5096
+
