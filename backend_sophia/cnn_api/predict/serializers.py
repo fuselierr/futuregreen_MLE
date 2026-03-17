@@ -5,6 +5,10 @@ from rest_framework import serializers
 class PredictionInputSerializer(serializers.Serializer):
     """Serializer for CNN prediction input"""
     
+    image_source = serializers.CharField(
+        max_length=1,
+        help_text="Source of the image: 'w' for URL, 'm' for direct upload"
+    )
     image_name = serializers.CharField(
         max_length=255,
         help_text="Name of the image file"
@@ -20,6 +24,7 @@ class PredictionInputSerializer(serializers.Serializer):
         help_text="Original image height in pixels",
         min_value=1
     )
+
 
     def validate_image_name(self, value):
         """Validate image name is not empty"""
