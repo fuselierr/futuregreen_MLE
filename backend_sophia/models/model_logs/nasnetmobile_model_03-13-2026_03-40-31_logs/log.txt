@@ -1,0 +1,49 @@
+Dataset is set to dataset_vers1
+Dimensions of the dataset images will be (150, 150)
+
+The model's name is NASNetMobileModel
+For this model, pixel values will be normalized to [0, 1]
+
+Loaded 25473 images from dataset_vers1
+Number of images per category:
+	paper: 3639 images
+	plastics: 3639 images
+	metal: 3639 images
+	cardboard: 3639 images
+	organic: 3639 images
+	trash: 3639 images
+	glass: 3639 images
+
+Data is split with train/test/validation ratio of 60/20/20
+	Training data: 15281 images
+	Testing data: 5096 images
+	Validation data: 5096 images
+
+Model was planned to be trained for 25 epochs, but stopped at 14 epochs to avoid overfitting)
+	Training time: 16 min 41 sec
+	1min 11sec per epoch
+
+Model is saved at nasnetmobile_model.keras
+
+Prediction summary:
+	Total images predicted: 5096
+	Correct: 4160
+	Wrong: 936
+	Time: 23.43s (0.0046s per image)
+	Accuracy: 0.8163265306122449
+
+Classification Report:
+              precision    recall  f1-score   support
+
+       paper       0.76      0.83      0.79       728
+    plastics       0.75      0.74      0.75       728
+       metal       0.79      0.78      0.78       728
+   cardboard       0.89      0.86      0.88       728
+     organic       0.84      0.89      0.86       728
+       trash       0.89      0.86      0.87       728
+       glass       0.80      0.76      0.78       728
+
+    accuracy                           0.82      5096
+   macro avg       0.82      0.82      0.82      5096
+weighted avg       0.82      0.82      0.82      5096
+
