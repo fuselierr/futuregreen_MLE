@@ -390,14 +390,14 @@ def submit_review(request):
 
     if serializer.is_valid():
         serializer.save()
-        # send email
-        send_mail(
-            subject="New TrashCNN User Review Submitted",
-            message=f"Rating: {serializer.validated_data['rating']}\nFeedback: {serializer.validated_data.get('feedback', '')}",
-            from_email="futurefusionqa@gmail.com",
-            recipient_list=["futurefusionqa@gmail.com"],
-            fail_silently=False,
-        )
+        # send email, oath to be configured
+        # send_mail(
+        #     subject="New TrashCNN User Review Submitted",
+        #     message=f"Rating: {serializer.validated_data['rating']}\nFeedback: {serializer.validated_data.get('feedback', '')}",
+        #     from_email="futurefusionqa@gmail.com",
+        #     recipient_list=["futurefusionqa@gmail.com"],
+        #     fail_silently=False,
+        # )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
