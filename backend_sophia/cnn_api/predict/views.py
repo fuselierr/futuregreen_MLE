@@ -59,8 +59,8 @@ class PredictionViewSet(viewsets.ViewSet):
         """Load the trained CNN model"""
         if self.model is None:
             from tensorflow.keras.models import load_model
-            model_path_w = Path(__file__).resolve().parent.parent / "benchmark_model.keras"
-            model_path_m = Path(__file__).resolve().parent.parent / "TrashCNN_es_v1.1.keras"
+            model_path_w = Path(__file__).resolve().parent.parent / "web_model.keras"
+            model_path_m = Path(__file__).resolve().parent.parent / "mobile_model.keras"
             
             if image_source == "w":
                 model_path = model_path_w
@@ -168,7 +168,7 @@ class PredictionViewSet(viewsets.ViewSet):
             )
             
             # Return result without storing
-            if confidence < 0.4:
+            if confidence < 0.3:
                 error_msg = f"Low confidence ({confidence:.4f}) for {image_name}: {prediction_result}"
                 logger.error(error_msg)
                 return Response(
