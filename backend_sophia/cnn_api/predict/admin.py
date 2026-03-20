@@ -21,3 +21,6 @@ class UserFeedbackAdmin(admin.ModelAdmin):
             'fields': ('created_at',)
         }),
     )
+from .models import Feedback
+
+admin.site.register(Feedback)

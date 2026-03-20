@@ -24,3 +24,10 @@ class UserFeedback(models.Model):
         verbose_name = "User Feedback"
         verbose_name_plural = "User Feedbacks"
         ordering = ["-created_at"]
+class Feedback(models.Model):
+    rating = models.IntegerField()
+    feedback = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Rating: {self.rating}, Feedback: {self.feedback[:20]}..."
