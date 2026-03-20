@@ -1,3 +1,4 @@
 from django.contrib import admin
+from .models import Feedback
 
-# No admin registration - no models to manage
+admin.site.register(Feedback)

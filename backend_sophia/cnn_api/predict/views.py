@@ -6,9 +6,10 @@ import io
 from pathlib import Path
 
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.parsers import JSONParser
+from django.core.mail import send_mail
 from PIL import Image
 
 from .serializers import (
@@ -16,6 +17,7 @@ from .serializers import (
     PredictionOutputSerializer,
     HealthCheckSerializer,
     ModelInfoSerializer,
+    FeedbackSerializer,
 )
 
 # Configure logging
@@ -380,3 +382,22 @@ class PredictionViewSet(viewsets.ViewSet):
                 {"error": error_msg},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        
+@api_view(["POST"])
+def submit_review(request):
+    """Endpoint to submit a rating + optional feedback and use models to store in database"""
+    serializer = FeedbackSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        # send email, oath to be configured
+        # send_mail(
+        #     subject="New TrashCNN User Review Submitted",
+        #     message=f"Rating: {serializer.validated_data['rating']}\nFeedback: {serializer.validated_data.get('feedback', '')}",
+        #     from_email="futurefusionqa@gmail.com",
+        #     recipient_list=["futurefusionqa@gmail.com"],
+        #     fail_silently=False,
+        # )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

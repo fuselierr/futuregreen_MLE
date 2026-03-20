@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from .models import Feedback
 
 
 # Serializer for CNN prediction input, output, health check response, and model info response. Validates input data and formats output data for the CNN prediction API endpoints.
@@ -65,3 +66,18 @@ class ModelInfoSerializer(serializers.Serializer):
     total_params = serializers.IntegerField()
     trainable_params = serializers.IntegerField()
     non_trainable_params = serializers.IntegerField()
+
+
+# Serializer for user feedback, including star rating and optional feedback text. Validates and stores user reviews in the database.
+class FeedbackSerializer(serializers.ModelSerializer):
+    """Serializer for user feedback/review submission"""
+    class Meta:
+        model = Feedback
+        fields = ['id', 'rating', 'feedback', 'timestamp']
+        read_only_fields = ['id', 'timestamp']
+    
+    def validate_rating(self, value):
+        """Validate rating is between 1 and 5"""
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5")
+        return value
