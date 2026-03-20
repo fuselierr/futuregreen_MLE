@@ -248,6 +248,7 @@ class PredictionViewSet(viewsets.ViewSet):
         """
         if self.model is None:
             self._load_model()
+
         
         try:
             predictions = self.model.predict(image_array, verbose=0)
@@ -255,12 +256,21 @@ class PredictionViewSet(viewsets.ViewSet):
             predicted_class = int(np.argmax(predictions))
             
             # Class labels - adjust based on your model's training classes
-            class_labels = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
-            prediction_label = (
-                class_labels[predicted_class] 
-                if predicted_class < len(class_labels) 
-                else f"class_{predicted_class}"
-            )
+            if model_path == model_path_w:
+                class_labels_w = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
+                prediction_label = (
+                    class_labels_w[predicted_class] 
+                    if predicted_class < len(class_labels_w) 
+                    else f"class_{predicted_class}"
+                )
+            
+            elif model_path == model_path_m:
+                class_labels_m = ["paper", "metal", "cardboard", "organic", "trash", "glass", "plastic"]
+                prediction_label = (
+                    class_labels_m[predicted_class] 
+                    if predicted_class < len(class_labels_m) 
+                    else f"class_{predicted_class}"
+                )
             
             logger.debug(f"Model prediction: class={prediction_label}, confidence={confidence:.4f}")
             
