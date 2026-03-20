@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from .models import UserFeedback
 
 
 # Serializer for CNN prediction input, output, health check response, and model info response. Validates input data and formats output data for the CNN prediction API endpoints.
@@ -65,3 +66,46 @@ class ModelInfoSerializer(serializers.Serializer):
     total_params = serializers.IntegerField()
     trainable_params = serializers.IntegerField()
     non_trainable_params = serializers.IntegerField()
+
+
+# Serializer for user feedback input, including model prediction, user prediction, and Base64-encoded image data. Used to store user feedback in the database for model improvement.
+class UserFeedbackInputSerializer(serializers.Serializer):
+    """Serializer for user feedback input"""
+    model_prediction = serializers.CharField(
+        max_length=255,
+        help_text="The model's predicted type of trash"
+    )
+    user_prediction = serializers.CharField(
+        max_length=255,
+        help_text="The user's predicted type of trash"
+    )
+    image_data = serializers.CharField(
+        help_text="Base64-encoded image data"
+    )
+
+    def validate_model_prediction(self, value):
+        """Validate model prediction is not empty"""
+        if not value.strip():
+            raise serializers.ValidationError("model_prediction cannot be empty")
+        return value
+
+    def validate_user_prediction(self, value):
+        """Validate user prediction is not empty"""
+        if not value.strip():
+            raise serializers.ValidationError("user_prediction cannot be empty")
+        return value
+
+    def validate_image_data(self, value):
+        """Validate image data is a non-empty base64 string"""
+        if not value.strip():
+            raise serializers.ValidationError("image_data cannot be empty")
+        return value
+
+
+# Serializer for user feedback database model
+class UserFeedbackSerializer(serializers.ModelSerializer):
+    """Serializer for UserFeedback model"""
+    class Meta:
+        model = UserFeedback
+        fields = ["id", "model_prediction", "user_prediction", "image_data", "created_at"]
+        read_only_fields = ["id", "created_at"]

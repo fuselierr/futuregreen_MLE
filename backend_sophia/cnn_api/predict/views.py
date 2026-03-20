@@ -16,7 +16,10 @@ from .serializers import (
     PredictionOutputSerializer,
     HealthCheckSerializer,
     ModelInfoSerializer,
+    UserFeedbackInputSerializer,
+    UserFeedbackSerializer,
 )
+from .models import UserFeedback
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -378,5 +381,69 @@ class PredictionViewSet(viewsets.ViewSet):
             logger.error(error_msg)
             return Response(
                 {"error": error_msg},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    # User feedback endpoint to store user feedback in the database
+    @action(detail=False, methods=["post"])
+    def user_feedback(self, request):
+        """
+        Store user feedback on model predictions in the database
+        
+        Expected input:
+        {
+            "model_prediction": "plastic",
+            "user_prediction": "plastic",
+            "image_data": "base64_encoded_image_string"
+        }
+        
+        Returns:
+            JSON response with success status and feedback ID if successful
+        """
+        logger.info("Received user feedback request")
+        serializer = UserFeedbackInputSerializer(data=request.data)
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            error_msg = f"Validation error: {str(e)}"
+            logger.error(error_msg)
+            return Response(
+                {"error": error_msg, "success": False},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            # Extract validated data
+            model_prediction = serializer.validated_data.get("model_prediction")
+            user_prediction = serializer.validated_data.get("user_prediction")
+            image_data = serializer.validated_data.get("image_data")
+            
+            # Create and save feedback to database
+            feedback = UserFeedback.objects.create(
+                model_prediction=model_prediction,
+                user_prediction=user_prediction,
+                image_data=image_data
+            )
+            
+            logger.info(
+                f"User feedback stored successfully. ID: {feedback.id}, "
+                f"Model: {model_prediction}, User: {user_prediction}"
+            )
+            
+            return Response(
+                {
+                    "success": True,
+                    "message": "User feedback stored successfully",
+                    "feedback_id": feedback.id
+                },
+                status=status.HTTP_201_CREATED
+            )
+            
+        except Exception as e:
+            error_msg = f"Failed to store user feedback: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return Response(
+                {"error": error_msg, "success": False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

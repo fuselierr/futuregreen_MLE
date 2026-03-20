@@ -1,3 +1,26 @@
 from django.db import models
 
-# No models needed - predictions are not tracked in database
+
+class UserFeedback(models.Model):
+    """Model to store user feedback on model predictions"""
+    
+    model_prediction = models.CharField(
+        max_length=255,
+        help_text="The model's predicted type of trash"
+    )
+    user_prediction = models.CharField(
+        max_length=255,
+        help_text="The user's predicted type of trash"
+    )
+    image_data = models.TextField(
+        help_text="Base64-encoded image data"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Feedback: Model={self.model_prediction}, User={self.user_prediction}"
+    
+    class Meta:
+        verbose_name = "User Feedback"
+        verbose_name_plural = "User Feedbacks"
+        ordering = ["-created_at"]

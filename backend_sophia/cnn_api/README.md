@@ -5,10 +5,12 @@ This is a Django REST API for processing trash classification using a trained Te
 
 ## Features
 - ✅ Base64-encoded image input support
+- ✅ Multiple model selection (benchmark or main model)
 - ✅ Automatic image preprocessing (resize to 150x150, normalization)
 - ✅ Real-time CNN predictions with confidence scores
 - ✅ Health check endpoint with model status
 - ✅ Model information endpoint with architecture details
+- ✅ User feedback collection and storage
 - ✅ Comprehensive input validation with detailed error messages
 - ✅ Full request/response logging to file
 - ✅ No prediction history stored in database
@@ -47,6 +49,7 @@ Submit a Base64-encoded image for trash classification prediction.
 #### Request Format:
 ```json
 {
+  "image_source": "w",
   "image_name": "trash_image.jpg",
   "image_data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
   "image_width": 640,
@@ -55,6 +58,9 @@ Submit a Base64-encoded image for trash classification prediction.
 ```
 
 **Parameters:**
+- `image_source` (string, required): Model source to use for prediction
+  - `"w"`: Web/benchmark model (benchmark_model.keras)
+  - `"m"`: Main model (TrashCNN_es_v1.1.keras)
 - `image_name` (string): Name of the image file (non-empty)
 - `image_data` (string): Base64-encoded image data
   - The image will be automatically decoded and converted to RGB format
@@ -91,6 +97,7 @@ with open('trash.jpg', 'rb') as f:
     image_base64 = base64.b64encode(f.read()).decode('utf-8')
 
 payload = {
+    "image_source": "w",  # Use web model
     "image_name": "trash.jpg",
     "image_data": image_base64,
     "image_width": 640,
@@ -106,6 +113,7 @@ print(response.json())
 curl -X POST http://localhost:8000/api/predict/ \
   -H "Content-Type: application/json" \
   -d '{
+    "image_source": "w",
     "image_name": "trash.jpg",
     "image_data": "'$(base64 -i trash.jpg)'",
     "image_width": 640,
@@ -215,6 +223,95 @@ print(f"Layers: {model_info['total_layers']}")
 print(f"Parameters: {model_info['total_params']}")
 ```
 
+### 4. User Feedback
+**POST** `/api/predict/user_feedback/`
+
+Submit user feedback on model predictions to help improve the model. Feedback is stored in the SQLite database.
+
+#### Request Format:
+```json
+{
+  "model_prediction": "plastic",
+  "user_prediction": "paper",
+  "image_data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+}
+```
+
+**Parameters:**
+- `model_prediction` (string): The predicted trash type from the model (non-empty)
+- `user_prediction` (string): The actual/corrected trash type according to the user (non-empty)
+- `image_data` (string): Base64-encoded image data used for prediction
+
+#### Validation Rules:
+- Model prediction must be non-empty
+- User prediction must be non-empty
+- Image data must be valid Base64-encoded string
+
+#### Success Response (201 Created):
+```json
+{
+  "success": true,
+  "message": "User feedback stored successfully",
+  "feedback_id": 1
+}
+```
+
+#### Error Response (400 Bad Request):
+```json
+{
+  "error": "Validation error: [error details]",
+  "success": false
+}
+```
+
+#### Error Response (500 Internal Server Error):
+```json
+{
+  "error": "Failed to store user feedback: [error details]",
+  "success": false
+}
+```
+
+#### Example Python Request:
+```python
+import requests
+import base64
+
+# Load and encode image
+with open('trash.jpg', 'rb') as f:
+    image_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+payload = {
+    "model_prediction": "plastic",
+    "user_prediction": "paper",
+    "image_data": image_base64
+}
+
+response = requests.post('http://localhost:8000/api/predict/user_feedback/', json=payload)
+print(response.json())
+```
+
+#### Example cURL Request:
+```bash
+curl -X POST http://localhost:8000/api/predict/user_feedback/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_prediction": "plastic",
+    "user_prediction": "paper",
+    "image_data": "'$(base64 -i trash.jpg)'"
+  }'
+```
+
+#### Database Storage:
+User feedback is stored in the SQLite database with the following fields:
+- `id`: Unique feedback identifier
+- `model_prediction`: Model's predicted trash type
+- `user_prediction`: User's corrected trash type
+- `image_data`: Base64-encoded image for reference
+- `created_at`: Timestamp of when feedback was submitted
+
+You can view stored feedback via Django admin at `/admin/predict/userfeedback/`
+
 ## Image Processing Pipeline
 
 The API automatically performs the following preprocessing steps on Base64-encoded input:
@@ -305,6 +402,7 @@ Example log entries:
 ## Key Features
 
 - ✅ **Base64 Image Support**: Accepts Base64-encoded image data
+- ✅ **Multiple Model Selection**: Choose between benchmark and main model
 - ✅ **Automatic Format Conversion**: Handles PNG, JPG, BMP, etc.
 - ✅ **Automatic Color Space Handling**: Converts RGBA, grayscale, etc. to RGB
 - ✅ **Single Image Processing**: Processes one image per request
@@ -312,6 +410,7 @@ Example log entries:
 - ✅ **Confidence Scores**: Returns prediction confidence for each result
 - ✅ **Automatic Resizing**: Images resized to 150×150 automatically
 - ✅ **Normalization**: Pixel values automatically normalized to [0, 1]
+- ✅ **User Feedback Collection**: Store user corrections in database
 - ✅ **Comprehensive Logging**: All activities logged to `logs/api.log`
 - ✅ **Health Monitoring**: Endpoints to check API and model status
 - ✅ **Model Introspection**: Endpoint to retrieve model architecture details
@@ -320,31 +419,7 @@ Example log entries:
 
 ## Usage Examples
 
-### Python Example with Base64
-```python
-import requests
-import base64
-
-# Load image from file
-with open('trash_sample.jpg', 'rb') as f:
-    image_base64 = base64.b64encode(f.read()).decode('utf-8')
-
-# Make prediction request
-payload = {
-    "image_name": "trash_sample.jpg",
-    "image_data": image_base64,
-    "image_width": 640,
-    "image_height": 480
-}
-
-response = requests.post("http://localhost:8000/api/predict/", json=payload)
-result = response.json()
-
-print(f"Class: {result['prediction_result']}")
-print(f"Confidence: {result['confidence']:.4f}")
-```
-
-### Python Example - Health Check
+#### Python Example - Health Check
 ```python
 import requests
 
@@ -358,7 +433,7 @@ else:
     print("✗ API is unhealthy - model not loaded")
 ```
 
-### Python Example - Model Info
+#### Python Example - Model Info
 ```python
 import requests
 
@@ -372,14 +447,40 @@ print(f"Total Parameters: {model_info['total_params']:,}")
 print(f"Trainable Parameters: {model_info['trainable_params']:,}")
 ```
 
+#### Python Example - User Feedback
+```python
+import requests
+import base64
+
+# Load and encode image
+with open('trash.jpg', 'rb') as f:
+    image_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+# Submit feedback
+payload = {
+    "model_prediction": "plastic",
+    "user_prediction": "paper",
+    "image_data": image_base64
+}
+
+response = requests.post("http://localhost:8000/api/predict/user_feedback/", json=payload)
+feedback = response.json()
+
+if feedback['success']:
+    print(f"✓ Feedback stored with ID: {feedback['feedback_id']}")
+else:
+    print(f"✗ Failed to store feedback: {feedback['error']}")
+```
+
 ## Testing
 
 A comprehensive test suite is provided in `test_api.py` that covers:
 - Health check endpoint
-- Single image prediction with valid input
+- Single image prediction with valid input (both model sources)
 - Input validation (wrong dimensions, wrong channels, non-3D arrays)
 - Empty image name validation
 - Model info endpoint
+- User feedback endpoint
 
 ### Running Tests
 ```bash
@@ -403,6 +504,7 @@ See `requirements.txt` for complete list.
 ## Notes
 
 - Predictions are **not stored** in the database
+- User feedback **is stored** in the SQLite database for model improvement
 - Only **one image per request** is supported
 - Image data must be provided as **Base64-encoded string**
 - The model is loaded once at startup and cached in memory
@@ -410,3 +512,4 @@ See `requirements.txt` for complete list.
 - The API is suitable for real-time trash classification use cases
 - Returns confidence scores (0.0 to 1.0) for predictions
 - Supports images of any size - automatically resized to 150×150
+- Multiple models available: benchmark model (`w`) and main model (`m`)
