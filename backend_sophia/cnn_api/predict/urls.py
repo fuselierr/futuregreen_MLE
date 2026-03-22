@@ -8,8 +8,6 @@ router.register(r"predict", views.PredictionViewSet, basename="predict")
 
 urlpatterns = [
     path("", include(router.urls)),
-<<<<<<< HEAD
     path('update_server/', views.webhook, name='webhook'),
-]
     path("reviews/", submit_review, name="submit_review"),
 ]
