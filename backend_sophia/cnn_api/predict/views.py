@@ -45,7 +45,7 @@ class PredictionViewSet(viewsets.ViewSet):
     API ViewSet for CNN image predictions
     
     Processes RGB images using the TrashCNN model:
-    - Resizes images to 150x150
+    - Resizes images to 224x224
     - Normalizes pixel values
     - Makes predictions without storing history
     """
@@ -56,14 +56,15 @@ class PredictionViewSet(viewsets.ViewSet):
         super().__init__(*args, **kwargs)
         self.model = None
         self.model_name = None
+        self.image_source = None
 
     # Helper method to load the CNN model from file
     def _load_model(self, image_source="w"):
         """Load the trained CNN model"""
         if self.model is None:
             from tensorflow.keras.models import load_model
-            model_path_w = Path(__file__).resolve().parent.parent / "web_model.keras"
-            model_path_m = Path(__file__).resolve().parent.parent / "mobile_model.keras"
+            model_path_w = Path(__file__).resolve().parent.parent.parent / "models" / "keras_files" / "web_model.keras"
+            model_path_m = Path(__file__).resolve().parent.parent.parent / "models" / "keras_files" / "mobile_model.keras"
             
             if image_source == "w":
                 model_path = model_path_w
@@ -78,12 +79,14 @@ class PredictionViewSet(viewsets.ViewSet):
             try:
                 self.model = load_model(str(model_path))
                 self.model_name = model_path.stem  # Extract filename without extension
+                self.image_source = image_source  # Store the image source
                 logger.info(f"CNN model loaded successfully from {model_path}")
             except Exception as e:
                 error_msg = f"Failed to load CNN model from {model_path}: {str(e)}"
                 logger.error(error_msg)
                 self.model = None
                 self.model_name = None
+                self.image_source = None
 
     # Helper method to decode Base64 image data to a numpy array in RGB format
     def _decode_base64_image(self, base64_string):
@@ -198,7 +201,7 @@ class PredictionViewSet(viewsets.ViewSet):
     # Helper method to preprocess the image for model input
     def _preprocess_image(self, image_array, width, height):
         """
-        Preprocess image: convert to numpy array, resize to 150x150, and normalize
+        Preprocess image: convert to numpy array, resize to 224x224, and normalize
         
         Args:
             image_array: numpy array with shape (height, width, 3)
@@ -217,16 +220,16 @@ class PredictionViewSet(viewsets.ViewSet):
             
             logger.debug(f"Image converted to numpy array with shape {image_array.shape}")
             
-            # Resize to 150x150 using cv2
-            resized_image = cv2.resize(image_array, (150, 150), interpolation=cv2.INTER_LINEAR)
+            # Resize to 224x224 using cv2
+            resized_image = cv2.resize(image_array, (224, 224), interpolation=cv2.INTER_LINEAR)
             
             # Normalize: convert from [0, 255] to [0, 1]
             normalized_image = resized_image.astype(np.float32) / 255.0
             
-            # Add batch dimension: (150, 150, 3) -> (1, 150, 150, 3)
+            # Add batch dimension: (224, 224, 3) -> (1, 224, 224, 3)
             batched_image = np.expand_dims(normalized_image, axis=0)
             
-            logger.debug(f"Image preprocessed: resized to 150x150, normalized, and batched")
+            logger.debug(f"Image preprocessed: resized to 224x224, normalized, and batched")
             
             return batched_image
             
@@ -247,7 +250,10 @@ class PredictionViewSet(viewsets.ViewSet):
             Tuple of (prediction_label, confidence_score)
         """
         if self.model is None:
-            self._load_model()
+            if self.image_source:
+                self._load_model(self.image_source)
+            else:
+                self._load_model()  # fallback with default
 
         
         try:
@@ -256,7 +262,7 @@ class PredictionViewSet(viewsets.ViewSet):
             predicted_class = int(np.argmax(predictions))
             
             # Class labels - adjust based on your model's training classes
-            if model_path == model_path_w:
+            if self.image_source == "w":
                 class_labels_w = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
                 prediction_label = (
                     class_labels_w[predicted_class] 
@@ -264,7 +270,7 @@ class PredictionViewSet(viewsets.ViewSet):
                     else f"class_{predicted_class}"
                 )
             
-            elif model_path == model_path_m:
+            elif self.image_source == "m":
                 class_labels_m = ["paper", "metal", "cardboard", "organic", "trash", "glass", "plastic"]
                 prediction_label = (
                     class_labels_m[predicted_class] 
@@ -294,7 +300,7 @@ class PredictionViewSet(viewsets.ViewSet):
         """
         try:
             if self.model is None:
-                self._load_model()
+                self._load_model()  # Load default model for health check
             
             if self.model is not None:
                 health_data = {
@@ -339,7 +345,7 @@ class PredictionViewSet(viewsets.ViewSet):
         """
         try:
             if self.model is None:
-                self._load_model()
+                self._load_model()  # Load default model for info
             
             if self.model is None:
                 error_msg = "CNN model is not loaded"

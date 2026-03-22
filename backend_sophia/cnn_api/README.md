@@ -1,12 +1,12 @@
 # CNN Image Prediction API
 
 ## Overview
-This is a Django REST API for processing trash classification using a trained TensorFlow/Keras CNN model. The API processes RGB images (provided as Base64-encoded strings), resizes them to 150x150 pixels, normalizes them, and returns predictions without storing history. All errors are logged to a file for debugging.
+This is a Django REST API for processing trash classification using a trained TensorFlow/Keras CNN model. The API processes RGB images (provided as Base64-encoded strings), resizes them to 224x224 pixels, normalizes them, and returns predictions without storing history. All errors are logged to a file for debugging.
 
 ## Features
 - ✅ Base64-encoded image input support
 - ✅ Multiple model selection (benchmark or main model)
-- ✅ Automatic image preprocessing (resize to 150x150, normalization)
+- ✅ Automatic image preprocessing (resize to 224x224, normalization)
 - ✅ Real-time CNN predictions with confidence scores
 - ✅ Health check endpoint with model status
 - ✅ Model information endpoint with architecture details
@@ -73,7 +73,7 @@ Submit a Base64-encoded image for trash classification prediction.
 1. Decodes Base64 string to image bytes
 2. Converts image to RGB format (handles RGBA, grayscale, etc.)
 3. Validates image dimensions match the declared width/height
-4. Resizes image to 150x150 pixels using bilinear interpolation
+4. Resizes image to 224x224 pixels using bilinear interpolation
 5. Normalizes pixel values from [0, 255] to [0, 1]
 6. Adds batch dimension for model input
 7. Performs CNN prediction
@@ -182,7 +182,7 @@ Retrieve detailed information about the trained CNN model including architecture
 ```json
 {
   "model_name": "TrashCNN_es_v1.1",
-  "input_shape": [150, 150, 3],
+  "input_shape": [224, 224, 3],
   "output_shape": [6],
   "total_layers": 14,
   "total_params": 2152486,
@@ -193,7 +193,7 @@ Retrieve detailed information about the trained CNN model including architecture
 
 **Response Fields:**
 - `model_name` (string): Name of the loaded model file
-- `input_shape` (array): Input layer shape (height, width, channels) - always [150, 150, 3]
+- `input_shape` (array): Input layer shape (height, width, channels) - always [224, 224, 3]
 - `output_shape` (array): Output layer shape - [6] for 6 trash classes
 - `total_layers` (integer): Total number of layers in the model
 - `total_params` (integer): Total number of model parameters
@@ -320,9 +320,9 @@ The API automatically performs the following preprocessing steps on Base64-encod
 2. **Format Detection**: Automatically detects image format (PNG, JPG, BMP, etc.)
 3. **RGB Conversion**: Converts any color space (RGBA, grayscale, etc.) to RGB
 4. **Dimension Validation**: Verifies decoded image matches declared width/height
-5. **Resizing**: Resizes image to 150×150 pixels using OpenCV bilinear interpolation
+5. **Resizing**: Resizes image to 224×224 pixels using OpenCV bilinear interpolation
 6. **Normalization**: Converts pixel values from [0, 255] to [0, 1] range
-7. **Batch Dimension**: Adds batch dimension (1, 150, 150, 3) for model input
+7. **Batch Dimension**: Adds batch dimension (1, 224, 224, 3) for model input
 8. **Prediction**: Performs CNN inference and returns results
 
 ## CNN Model Details
