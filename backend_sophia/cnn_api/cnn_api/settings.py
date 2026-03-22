@@ -25,7 +25,8 @@ SECRET_KEY = "django-insecure-wmo^hbs6la8krr!020z57$px+yh=t9xih7r9%mkf9etn33s8wg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['ethnyao.pythonanywhere.com', '127.0.0.1']
+# ALLOWED_HOSTS = ['localhost']
 
 
 # Application definition
@@ -127,7 +128,24 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS settings for development
-CORS_ALLOW_ALL_ORIGINS = True # Allow all origins during development
-# CORS_ALLOWED_ORIGINS = ['http://localhost:3000'] # Specific origins
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'futurefusionqa@gmail.com'
+EMAIL_HOST_PASSWORD = "your_app_password"
+
+# CORS settings
+
+CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
