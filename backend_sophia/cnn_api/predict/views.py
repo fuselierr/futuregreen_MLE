@@ -6,9 +6,10 @@ import io
 from pathlib import Path
 
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.parsers import JSONParser
+from django.core.mail import send_mail
 from PIL import Image
 
 from .serializers import (
@@ -16,7 +17,11 @@ from .serializers import (
     PredictionOutputSerializer,
     HealthCheckSerializer,
     ModelInfoSerializer,
+    UserFeedbackInputSerializer,
+    UserFeedbackSerializer,
+    FeedbackSerializer,
 )
+from .models import UserFeedback
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -34,12 +39,13 @@ logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
 
 
+# PredictionViewSet handles CNN image predictions without storing history in the database.
 class PredictionViewSet(viewsets.ViewSet):
     """
     API ViewSet for CNN image predictions
     
     Processes RGB images using the TrashCNN model:
-    - Resizes images to 150x150
+    - Resizes images to 224x224
     - Normalizes pixel values
     - Makes predictions without storing history
     """
@@ -50,23 +56,39 @@ class PredictionViewSet(viewsets.ViewSet):
         super().__init__(*args, **kwargs)
         self.model = None
         self.model_name = None
-        self._load_model()
+        self.image_source = None
 
-    def _load_model(self):
+    # Helper method to load the CNN model from file
+    def _load_model(self, image_source="w"):
         """Load the trained CNN model"""
         if self.model is None:
             from tensorflow.keras.models import load_model
-            model_path = Path(__file__).resolve().parent.parent / "benchmark_model.keras"
+            model_path_w = Path(__file__).resolve().parent.parent.parent / "models" / "keras_files" / "web_model.keras"
+            model_path_m = Path(__file__).resolve().parent.parent.parent / "models" / "keras_files" / "mobile_model.keras"
+            
+            if image_source == "w":
+                model_path = model_path_w
+            elif image_source == "m":
+                model_path = model_path_m
+            else:
+                logger.error(f"Invalid image source: {image_source}")
+                self.model = None
+                self.model_name = None
+                return
+
             try:
                 self.model = load_model(str(model_path))
                 self.model_name = model_path.stem  # Extract filename without extension
+                self.image_source = image_source  # Store the image source
                 logger.info(f"CNN model loaded successfully from {model_path}")
             except Exception as e:
                 error_msg = f"Failed to load CNN model from {model_path}: {str(e)}"
                 logger.error(error_msg)
                 self.model = None
                 self.model_name = None
+                self.image_source = None
 
+    # Helper method to decode Base64 image data to a numpy array in RGB format
     def _decode_base64_image(self, base64_string):
         """
         Decode a Base64-encoded image string to a numpy array in RGB format
@@ -100,6 +122,7 @@ class PredictionViewSet(viewsets.ViewSet):
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+    # Main method to handle prediction requests
     def create(self, request, *args, **kwargs):
         """
         Process image and return prediction without storing in database
@@ -127,10 +150,14 @@ class PredictionViewSet(viewsets.ViewSet):
         
         try:
             # Extract validated data
+            image_source = serializer.validated_data.get("image_source")
             image_data = serializer.validated_data.get("image_data")
             image_width = serializer.validated_data.get("image_width")
             image_height = serializer.validated_data.get("image_height")
             image_name = serializer.validated_data.get("image_name")
+            
+            # Load model with the specified image source
+            self._load_model(image_source)
             
             logger.info(f"Processing image: {image_name} ({image_width}x{image_height})")
             
@@ -147,14 +174,21 @@ class PredictionViewSet(viewsets.ViewSet):
             )
             
             # Return result without storing
-            output_data = {
-                "image_name": image_name,
-                "prediction_result": prediction_result,
-                "confidence": float(confidence),
-            }
+            if confidence < 0.3:
+                error_msg = f"Low confidence ({confidence:.4f}) for {image_name}: {prediction_result}"
+                logger.error(error_msg)
+                return Response(
+                    {"error": error_msg},
+                    status=status.HTTP_200_OK)
+            else:
+                output_data = {
+                    "image_name": image_name,
+                    "prediction_result": prediction_result,
+                    "confidence": float(confidence),
+                }
             
-            output_serializer = PredictionOutputSerializer(output_data)
-            return Response(output_serializer.data, status=status.HTTP_200_OK)
+                output_serializer = PredictionOutputSerializer(output_data)
+                return Response(output_serializer.data, status=status.HTTP_200_OK)
             
         except Exception as e:
             error_msg = f"Prediction failed: {str(e)}"
@@ -164,9 +198,10 @@ class PredictionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    # Helper method to preprocess the image for model input
     def _preprocess_image(self, image_array, width, height):
         """
-        Preprocess image: convert to numpy array, resize to 150x150, and normalize
+        Preprocess image: convert to numpy array, resize to 224x224, and normalize
         
         Args:
             image_array: numpy array with shape (height, width, 3)
@@ -185,16 +220,16 @@ class PredictionViewSet(viewsets.ViewSet):
             
             logger.debug(f"Image converted to numpy array with shape {image_array.shape}")
             
-            # Resize to 150x150 using cv2
-            resized_image = cv2.resize(image_array, (150, 150), interpolation=cv2.INTER_LINEAR)
+            # Resize to 224x224 using cv2
+            resized_image = cv2.resize(image_array, (224, 224), interpolation=cv2.INTER_LINEAR)
             
             # Normalize: convert from [0, 255] to [0, 1]
             normalized_image = resized_image.astype(np.float32) / 255.0
             
-            # Add batch dimension: (150, 150, 3) -> (1, 150, 150, 3)
+            # Add batch dimension: (224, 224, 3) -> (1, 224, 224, 3)
             batched_image = np.expand_dims(normalized_image, axis=0)
             
-            logger.debug(f"Image preprocessed: resized to 150x150, normalized, and batched")
+            logger.debug(f"Image preprocessed: resized to 224x224, normalized, and batched")
             
             return batched_image
             
@@ -203,6 +238,7 @@ class PredictionViewSet(viewsets.ViewSet):
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+    # Single image prediction method that uses the CNN model to predict the class of the input image. Returns the predicted class label and confidence score. Handles exceptions and logs prediction results for debugging and monitoring purposes.
     def _predict(self, image_array):
         """
         Make prediction using the CNN model
@@ -214,7 +250,11 @@ class PredictionViewSet(viewsets.ViewSet):
             Tuple of (prediction_label, confidence_score)
         """
         if self.model is None:
-            self._load_model()
+            if self.image_source:
+                self._load_model(self.image_source)
+            else:
+                self._load_model()  # fallback with default
+
         
         try:
             predictions = self.model.predict(image_array, verbose=0)
@@ -222,12 +262,21 @@ class PredictionViewSet(viewsets.ViewSet):
             predicted_class = int(np.argmax(predictions))
             
             # Class labels - adjust based on your model's training classes
-            class_labels = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
-            prediction_label = (
-                class_labels[predicted_class] 
-                if predicted_class < len(class_labels) 
-                else f"class_{predicted_class}"
-            )
+            if self.image_source == "w":
+                class_labels_w = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
+                prediction_label = (
+                    class_labels_w[predicted_class] 
+                    if predicted_class < len(class_labels_w) 
+                    else f"class_{predicted_class}"
+                )
+            
+            elif self.image_source == "m":
+                class_labels_m = ["paper", "metal", "cardboard", "organic", "trash", "glass", "plastic"]
+                prediction_label = (
+                    class_labels_m[predicted_class] 
+                    if predicted_class < len(class_labels_m) 
+                    else f"class_{predicted_class}"
+                )
             
             logger.debug(f"Model prediction: class={prediction_label}, confidence={confidence:.4f}")
             
@@ -238,6 +287,7 @@ class PredictionViewSet(viewsets.ViewSet):
             raise RuntimeError(error_msg)
 
 
+    # Health check endpoint to verify if the CNN model is loaded and API is operational. Returns "status", "model_loaded", and a descriptive message about the health status of the API. Useful for monitoring and alerting.
     @action(detail=False, methods=["get"])
     def check_health(self, request):
         """
@@ -250,7 +300,7 @@ class PredictionViewSet(viewsets.ViewSet):
         """
         try:
             if self.model is None:
-                self._load_model()
+                self._load_model()  # Load default model for health check
             
             if self.model is not None:
                 health_data = {
@@ -278,6 +328,7 @@ class PredictionViewSet(viewsets.ViewSet):
             }
             return Response(health_data, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
+    # Model info endpoint to retrieve details about the CNN model architecture and parameters. Returns information such as model name, input shape, output shape, total layers, total parameters, trainable parameters, and non-trainable parameters. Useful for debugging and understanding the model being used for predictions.
     @action(detail=False, methods=["get"])
     def model_info(self, request):
         """
@@ -294,7 +345,7 @@ class PredictionViewSet(viewsets.ViewSet):
         """
         try:
             if self.model is None:
-                self._load_model()
+                self._load_model()  # Load default model for info
             
             if self.model is None:
                 error_msg = "CNN model is not loaded"
@@ -350,3 +401,95 @@ class PredictionViewSet(viewsets.ViewSet):
                 {"error": error_msg},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+import subprocess
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+def webhook(request):
+    if request.method == 'POST':
+        subprocess.run(['git', 'pull'], cwd='/home/ethnyao/futuregreen_MLE')
+        return HttpResponse('Updated', status=200)
+
+    # User feedback endpoint to store user feedback in the database
+    @action(detail=False, methods=["post"])
+    def user_feedback(self, request):
+        """
+        Store user feedback on model predictions in the database
+        
+        Expected input:
+        {
+            "model_prediction": "plastic",
+            "user_prediction": "plastic",
+            "image_data": "base64_encoded_image_string"
+        }
+        
+        Returns:
+            JSON response with success status and feedback ID if successful
+        """
+        logger.info("Received user feedback request")
+        serializer = UserFeedbackInputSerializer(data=request.data)
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            error_msg = f"Validation error: {str(e)}"
+            logger.error(error_msg)
+            return Response(
+                {"error": error_msg, "success": False},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            # Extract validated data
+            model_prediction = serializer.validated_data.get("model_prediction")
+            user_prediction = serializer.validated_data.get("user_prediction")
+            image_data = serializer.validated_data.get("image_data")
+            
+            # Create and save feedback to database
+            feedback = UserFeedback.objects.create(
+                model_prediction=model_prediction,
+                user_prediction=user_prediction,
+                image_data=image_data
+            )
+            
+            logger.info(
+                f"User feedback stored successfully. ID: {feedback.id}, "
+                f"Model: {model_prediction}, User: {user_prediction}"
+            )
+            
+            return Response(
+                {
+                    "success": True,
+                    "message": "User feedback stored successfully",
+                    "feedback_id": feedback.id
+                },
+                status=status.HTTP_201_CREATED
+            )
+            
+        except Exception as e:
+            error_msg = f"Failed to store user feedback: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return Response(
+                {"error": error_msg, "success": False},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        
+@api_view(["POST"])
+def submit_review(request):
+    """Endpoint to submit a rating + optional feedback and use models to store in database"""
+    serializer = FeedbackSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        # send email, oath to be configured
+        # send_mail(
+        #     subject="New TrashCNN User Review Submitted",
+        #     message=f"Rating: {serializer.validated_data['rating']}\nFeedback: {serializer.validated_data.get('feedback', '')}",
+        #     from_email="futurefusionqa@gmail.com",
+        #     recipient_list=["futurefusionqa@gmail.com"],
+        #     fail_silently=False,
+        # )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
