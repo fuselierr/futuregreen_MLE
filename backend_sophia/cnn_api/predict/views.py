@@ -65,6 +65,7 @@ class PredictionViewSet(viewsets.ViewSet):
         """Load the trained CNN model"""
         if self.model is None:
             from tensorflow.keras.models import load_model
+            # model_path_w = Path(__file__).resolve().parent.parent.parent / "models" / "keras_files" / "web_model.keras"
             model_path_w = Path(__file__).resolve().parent.parent.parent / "models" / "keras_files" / "web_model.keras"
             model_path_m = Path(__file__).resolve().parent.parent.parent / "models" / "keras_files" / "mobile_model.keras"
             
@@ -483,15 +484,6 @@ class PredictionViewSet(viewsets.ViewSet):
                 {"error": error_msg},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-import subprocess
-from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-
-@csrf_exempt
-def webhook(request):
-    if request.method == 'POST':
-        subprocess.run(['git', 'pull'], cwd='/home/ethnyao/futuregreen_MLE')
-        return HttpResponse('Updated', status=200)
 
     # User feedback endpoint to store user feedback in the database
     @action(detail=False, methods=["post"])
@@ -556,6 +548,17 @@ def webhook(request):
                 {"error": error_msg, "success": False},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+import subprocess
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+def webhook(request):
+    if request.method == 'POST':
+        subprocess.run(['git', 'pull'], cwd='/home/ethnyao/futuregreen_MLE')
+        return HttpResponse('Updated', status=200)
         
 @api_view(["POST"])
 def submit_review(request):

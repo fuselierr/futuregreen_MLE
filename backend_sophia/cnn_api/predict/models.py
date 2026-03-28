@@ -24,6 +24,8 @@ class UserFeedback(models.Model):
         verbose_name = "User Feedback"
         verbose_name_plural = "User Feedbacks"
         ordering = ["-created_at"]
+
+
 class Feedback(models.Model):
     rating = models.IntegerField()
     feedback = models.TextField(blank=True, null=True)

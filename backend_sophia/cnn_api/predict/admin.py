@@ -1,8 +1,7 @@
 from django.contrib import admin
-from .models import UserFeedback
+from .models import UserFeedback, Feedback
 
 
-@admin.register(UserFeedback)
 class UserFeedbackAdmin(admin.ModelAdmin):
     list_display = ['id', 'model_prediction', 'user_prediction', 'created_at']
     list_filter = ['created_at', 'model_prediction', 'user_prediction']
@@ -21,6 +20,6 @@ class UserFeedbackAdmin(admin.ModelAdmin):
             'fields': ('created_at',)
         }),
     )
-from .models import Feedback
 
+admin.site.register(UserFeedback)
 admin.site.register(Feedback)
