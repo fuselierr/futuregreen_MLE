@@ -5,3 +5,4 @@ tensorflow==2.16.1
 opencv-python>=4.9
 numpy>=1.24
 Pillow>=10.4
+ultralytics>=8.0.0

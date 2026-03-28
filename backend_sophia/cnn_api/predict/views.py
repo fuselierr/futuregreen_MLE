@@ -3,6 +3,8 @@ import cv2
 import logging
 import base64
 import io
+import subprocess
+import tempfile
 from pathlib import Path
 
 from rest_framework import status, viewsets
@@ -122,6 +124,78 @@ class PredictionViewSet(viewsets.ViewSet):
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+    # Helper method to process image using single_image.py YOLO script
+    def _process_with_yolo(self, image_array, image_name):
+        """
+        Process image using single_image.py script for YOLO detection and cropping.
+        
+        Args:
+            image_array: numpy array with image data in RGB format
+            image_name: name of the image file
+            
+        Returns:
+            Cropped numpy array from YOLO detection, or original if YOLO fails gracefully
+            
+        Raises:
+            RuntimeError: if YOLO processing fails
+        """
+        try:
+            yolo_script = Path(__file__).resolve().parent.parent / "yolo" / "single_image.py"
+            
+            if not yolo_script.exists():
+                logger.warning(f"YOLO script not found at {yolo_script}, skipping YOLO processing")
+                return image_array
+            
+            # Create temporary directory for YOLO processing
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_dir = Path(temp_dir)
+                
+                # Save the image to temporary file
+                temp_input = temp_dir / image_name
+                Image.fromarray(image_array, mode='RGB').save(str(temp_input))
+                logger.debug(f"Saved image to temporary file: {temp_input}")
+                
+                # Define output path for cropped image
+                temp_output = temp_dir / f"{Path(image_name).stem}_cropped.jpg"
+                
+                # Call single_image.py script
+                try:
+                    result = subprocess.run(
+                        ["python", str(yolo_script), str(temp_input), str(temp_output)],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    
+                    if result.returncode != 0:
+                        logger.warning(f"YOLO processing failed: {result.stderr}")
+                        logger.debug("Continuing with original image (YOLO is optional)")
+                        return image_array
+                    
+                    # Load cropped image if YOLO succeeded
+                    if temp_output.exists():
+                        cropped_image = Image.open(str(temp_output)).convert('RGB')
+                        cropped_array = np.array(cropped_image, dtype=np.uint8)
+                        logger.debug(f"YOLO processing successful. Cropped shape: {cropped_array.shape}")
+                        logger.info(f"[YOLO] Image processed successfully: {result.stdout.strip()}")
+                        return cropped_array
+                    else:
+                        logger.warning("YOLO output file not created")
+                        return image_array
+                        
+                except subprocess.TimeoutExpired:
+                    logger.warning("YOLO processing timed out (30s), continuing with original image")
+                    return image_array
+                except FileNotFoundError:
+                    logger.warning("Python interpreter not found in PATH for YOLO processing")
+                    return image_array
+                    
+        except Exception as e:
+            error_msg = f"YOLO processing error: {str(e)}"
+            logger.warning(error_msg)
+            logger.debug("Continuing with original image (YOLO processing is optional)")
+            return image_array
+
     # Main method to handle prediction requests
     def create(self, request, *args, **kwargs):
         """
@@ -162,7 +236,15 @@ class PredictionViewSet(viewsets.ViewSet):
             logger.info(f"Processing image: {image_name} ({image_width}x{image_height})")
             
             # Decode Base64 image to numpy array in RGB format
-            image_array = self._decode_base64_image(image_data)            
+            image_array = self._decode_base64_image(image_data)
+            
+            # Process image with YOLO for detection and cropping (optional)
+            logger.info("Processing image with YOLO detection and cropping")
+            image_array = self._process_with_yolo(image_array, image_name)
+            
+            # Update dimensions based on processed image
+            image_height, image_width = image_array.shape[:2]
+            logger.debug(f"Image dimensions after YOLO processing: {image_width}x{image_height}")
 
             # Prepare image: resize, normalize, and fix dimensions
             processed_image = self._preprocess_image(image_array, image_width, image_height)

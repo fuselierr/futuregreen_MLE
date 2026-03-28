@@ -1,10 +1,11 @@
 # CNN Image Prediction API
 
 ## Overview
-This is a Django REST API for processing trash classification using a trained TensorFlow/Keras CNN model. The API processes RGB images (provided as Base64-encoded strings), resizes them to 224x224 pixels, normalizes them, and returns predictions without storing history. All errors are logged to a file for debugging.
+This is a Django REST API for processing trash classification using a trained TensorFlow/Keras CNN model. The API processes RGB images (provided as Base64-encoded strings), applies optional YOLOv8-based object detection and cropping, resizes them to 224x224 pixels, normalizes them, and returns predictions without storing history. All errors are logged to a file for debugging.
 
 ## Features
 - ✅ Base64-encoded image input support
+- ✅ YOLOv8 object detection and automatic cropping (optional)
 - ✅ Multiple model selection (benchmark or main model)
 - ✅ Automatic image preprocessing (resize to 224x224, normalization)
 - ✅ Real-time CNN predictions with confidence scores
@@ -72,11 +73,12 @@ Submit a Base64-encoded image for trash classification prediction.
 #### Image Processing Pipeline:
 1. Decodes Base64 string to image bytes
 2. Converts image to RGB format (handles RGBA, grayscale, etc.)
-3. Validates image dimensions match the declared width/height
-4. Resizes image to 224x224 pixels using bilinear interpolation
-5. Normalizes pixel values from [0, 255] to [0, 1]
-6. Adds batch dimension for model input
-7. Performs CNN prediction
+3. **[NEW] Applies YOLOv8 object detection and cropping** (optional, gracefully skips if unavailable)
+4. Validates image dimensions match the declared width/height
+5. Resizes image to 224x224 pixels using bilinear interpolation
+6. Normalizes pixel values from [0, 255] to [0, 1]
+7. Adds batch dimension for model input
+8. Performs CNN prediction
 
 #### Supported Classes:
 `cardboard`, `glass`, `metal`, `paper`, `plastic`, `trash`
@@ -319,11 +321,43 @@ The API automatically performs the following preprocessing steps on Base64-encod
 1. **Base64 Decoding**: Converts Base64 string to image bytes
 2. **Format Detection**: Automatically detects image format (PNG, JPG, BMP, etc.)
 3. **RGB Conversion**: Converts any color space (RGBA, grayscale, etc.) to RGB
-4. **Dimension Validation**: Verifies decoded image matches declared width/height
-5. **Resizing**: Resizes image to 224×224 pixels using OpenCV bilinear interpolation
-6. **Normalization**: Converts pixel values from [0, 255] to [0, 1] range
-7. **Batch Dimension**: Adds batch dimension (1, 224, 224, 3) for model input
-8. **Prediction**: Performs CNN inference and returns results
+4. **[NEW] YOLO Detection & Cropping**: Applies YOLOv8 object detection to locate and crop waste items (optional, gracefully skips if unavailable)
+5. **Dimension Validation**: Verifies decoded image matches declared width/height
+6. **Resizing**: Resizes image to 224×224 pixels using OpenCV bilinear interpolation
+7. **Normalization**: Converts pixel values from [0, 255] to [0, 1] range
+8. **Batch Dimension**: Adds batch dimension (1, 224, 224, 3) for model input
+9. **Prediction**: Performs CNN inference and returns results
+
+## YOLO Integration
+
+The API now includes optional YOLOv8-based object detection and cropping via the `single_image.py` script in the `yolo/` folder.
+
+### How YOLO Processing Works
+
+When an image is submitted to the prediction endpoint:
+1. The image is decoded from Base64
+2. YOLOv8 runs object detection to locate waste items in the image
+3. If exactly one waste item is detected, the image is automatically cropped to the object's bounding box
+4. The cropped image is then processed by the CNN for classification
+5. If YOLO detection fails or finds multiple items, the original image is used (graceful fallback)
+
+### Benefits
+
+- **Improved Accuracy**: Cropping focuses the CNN on the actual waste item, ignoring background clutter
+- **Automated Preprocessing**: Eliminates the need for manual image cropping before submission
+- **Robust**: Gracefully falls back to original image if YOLO processing fails
+- **Optional**: YOLO processing is optional - the API works even if the YOLO script is unavailable
+
+### Configuration
+
+YOLO processing parameters can be customized in `yolo/single_image.py`:
+- `MIN_INPUT_RESOLUTION`: Minimum input image dimensions (default: 250×250)
+- `MIN_CROP_RESOLUTION`: Minimum cropped object dimensions (default: 112×112)
+- `CROP_PADDING`: Padding around detected object (default: 10 pixels)
+- `FILTER_CLASSES`: Classes to detect (e.g., paper, cardboard, plastic, etc.)
+- `CLASS_THRESHOLDS`: Confidence thresholds per class for quality filtering
+
+For detailed YOLO configuration and customization, see [yolo/YOLO.md](yolo/YOLO.md).
 
 ## CNN Model Details
 
@@ -402,13 +436,14 @@ Example log entries:
 ## Key Features
 
 - ✅ **Base64 Image Support**: Accepts Base64-encoded image data
+- ✅ **YOLOv8 Object Detection**: Automatic waste item detection and cropping
 - ✅ **Multiple Model Selection**: Choose between benchmark and main model
 - ✅ **Automatic Format Conversion**: Handles PNG, JPG, BMP, etc.
 - ✅ **Automatic Color Space Handling**: Converts RGBA, grayscale, etc. to RGB
 - ✅ **Single Image Processing**: Processes one image per request
 - ✅ **Real-time Predictions**: No history stored in database
 - ✅ **Confidence Scores**: Returns prediction confidence for each result
-- ✅ **Automatic Resizing**: Images resized to 150×150 automatically
+- ✅ **Automatic Resizing**: Images resized to 224×224 automatically
 - ✅ **Normalization**: Pixel values automatically normalized to [0, 1]
 - ✅ **User Feedback Collection**: Store user corrections in database
 - ✅ **Comprehensive Logging**: All activities logged to `logs/api.log`
@@ -495,6 +530,7 @@ The test suite will output detailed test results for all endpoints.
 - djangorestframework 3.14.0
 - TensorFlow 2.20.0
 - Keras 3.10.0+
+- Ultralytics (YOLOv8) 8.0.0+
 - OpenCV (cv2) 4.9.0+
 - NumPy (latest <2.0)
 - Pillow (for image handling)
@@ -507,9 +543,11 @@ See `requirements.txt` for complete list.
 - User feedback **is stored** in the SQLite database for model improvement
 - Only **one image per request** is supported
 - Image data must be provided as **Base64-encoded string**
+- YOLO processing is **optional** - the API works even if YOLO is unavailable
 - The model is loaded once at startup and cached in memory
 - All activities are logged to `logs/api.log` for debugging
 - The API is suitable for real-time trash classification use cases
 - Returns confidence scores (0.0 to 1.0) for predictions
-- Supports images of any size - automatically resized to 150×150
+- Supports images of any size - automatically resized to 224×224
 - Multiple models available: benchmark model (`w`) and main model (`m`)
+- YOLO detection improves accuracy by cropping the image to the detected waste item
