@@ -23,3 +23,6 @@
   - D2 contains the cropped images (i.e. the output after multi-object detection), but contains much fewer images than D1 due to the multi-object filtering
     - particularly, glass only has ~600 images, so the model accuracy on glass is not so good
   - so, you should test both models out to see which one performs better with user images
+
+(Apr 5)
+- `dataset_vers3_resnet50.keras`

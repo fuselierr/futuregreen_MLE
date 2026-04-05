@@ -1,0 +1,49 @@
+Dataset is set to dataset_vers3
+Dimensions of the dataset images will be (224, 224)
+
+The model's name is ResNet50Model
+Using builtin, model-specific preprocess_input function to pre-process images
+
+Loaded 21119 images from dataset_vers3
+Number of images per category:
+	cardboard: 3017 images
+	glass: 3017 images
+	metal: 3017 images
+	organic: 3017 images
+	paper: 3017 images
+	plastic: 3017 images
+	trash: 3017 images
+
+Data is split with train/test/validation ratio of 60/20/20
+	Training data: 12670 images
+	Testing data: 4221 images
+	Validation data: 4228 images
+
+Model was planned to be trained for 20 epochs, but stopped at 9 epochs to avoid overfitting
+	Training time: 59 min 12 sec
+	6min 34sec per epoch
+
+Model is saved at dataset_vers3_resnet50.keras
+
+Prediction summary:
+	Total images predicted: 4221
+	Correct: 3994
+	Wrong: 227
+	Time: 108.93s (0.0258s per image)
+	Accuracy: 0.9462212745794836
+
+Classification Report:
+              precision    recall  f1-score   support
+
+   cardboard       0.95      0.98      0.97       603
+       glass       0.93      0.91      0.92       603
+       metal       0.91      0.96      0.94       603
+     organic       0.98      0.98      0.98       603
+       paper       0.95      0.95      0.95       603
+     plastic       0.96      0.88      0.92       603
+       trash       0.93      0.96      0.95       603
+
+    accuracy                           0.95      4221
+   macro avg       0.95      0.95      0.95      4221
+weighted avg       0.95      0.95      0.95      4221
+
