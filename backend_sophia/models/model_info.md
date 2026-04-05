@@ -11,3 +11,6 @@
 - `NASNetMobileModel_imgsize_(224, 224).keras`
   - these are the two candidate models for the app version
   - the glass category is currently not so accurate, since there are fewer images in the dataset after multi-object filtering
+
+(Apr 5)
+- `dataset_vers3_resnet50.keras`
