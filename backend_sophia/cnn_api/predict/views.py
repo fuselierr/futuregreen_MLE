@@ -341,28 +341,31 @@ class PredictionViewSet(viewsets.ViewSet):
         
         try:
             predictions = self.model.predict(image_array, verbose=0)
+            prediction_scores = predictions[0].tolist() if hasattr(predictions, 'shape') and predictions.ndim > 1 else predictions.tolist()
+
+            if self.image_source == "w":
+                class_labels = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
+            else:
+                class_labels = ['paper', 'plastics', 'metal', 'cardboard', 'organic', 'trash', 'glass']
+
+            raw_prediction_dict = {
+                class_labels[i] if i < len(class_labels) else f"class_{i}": float(score)
+                for i, score in enumerate(prediction_scores)
+            }
+            print(f"Raw model predictions ({self.image_source}): {raw_prediction_dict}")
+            logger.debug(f"Raw model predictions ({self.image_source}): {raw_prediction_dict}")
+
             confidence = float(np.max(predictions))
             predicted_class = int(np.argmax(predictions))
-            
-            # Class labels - adjust based on your model's training classes
-            if self.image_source == "w":
-                class_labels_w = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "organic", "rejected"]
-                prediction_label = (
-                    class_labels_w[predicted_class] 
-                    if predicted_class < len(class_labels_w) 
-                    else f"class_{predicted_class}"
-                )
-            
-            elif self.image_source == "m":
-                class_labels_m = ["paper", "metal", "cardboard", "organic", "trash", "glass", "plastic"]
-                prediction_label = (
-                    class_labels_m[predicted_class] 
-                    if predicted_class < len(class_labels_m) 
-                    else f"class_{predicted_class}"
-                )
-            
+
+            prediction_label = (
+                class_labels[predicted_class]
+                if predicted_class < len(class_labels)
+                else f"class_{predicted_class}"
+            )
+
             logger.debug(f"Model prediction: class={prediction_label}, confidence={confidence:.4f}")
-            
+
             return prediction_label, confidence
         except Exception as e:
             error_msg = f"Model prediction failed: {str(e)}"
