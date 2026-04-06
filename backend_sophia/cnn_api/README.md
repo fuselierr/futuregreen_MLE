@@ -551,3 +551,5 @@ See `requirements.txt` for complete list.
 - Supports images of any size - automatically resized to 224×224
 - Multiple models available: benchmark model (`w`) and main model (`m`)
 - YOLO detection improves accuracy by cropping the image to the detected waste item
+- Mobile model: FINAL_VER_MobileNetV3Model_datasetvers1imgsize(224, 224)mindim(50).keras
+- Web model: dataset_vers3_resnet50.keras
