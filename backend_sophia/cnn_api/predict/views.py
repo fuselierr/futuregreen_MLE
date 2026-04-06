@@ -6,7 +6,6 @@ import io
 import subprocess
 import tempfile
 from pathlib import Path
-from scipy.special import softmax
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
