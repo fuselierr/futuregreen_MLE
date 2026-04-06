@@ -6,6 +6,7 @@ import io
 import subprocess
 import tempfile
 from pathlib import Path
+from scipy.special import softmax
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
@@ -307,10 +308,10 @@ class PredictionViewSet(viewsets.ViewSet):
             resized_image = cv2.resize(image_array, (224, 224), interpolation=cv2.INTER_LINEAR)
             
             # Normalize: convert from [0, 255] to [0, 1]
-            normalized_image = resized_image.astype(np.float32) / 255.0
+            # normalized_image = resized_image.astype(np.float32) / 255.0
             
             # Add batch dimension: (224, 224, 3) -> (1, 224, 224, 3)
-            batched_image = np.expand_dims(normalized_image, axis=0)
+            batched_image = np.expand_dims(resized_image, axis=0)
             
             logger.debug(f"Image preprocessed: resized to 224x224, normalized, and batched")
             
